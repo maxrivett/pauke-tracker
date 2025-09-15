@@ -152,7 +152,7 @@ const STATE = {
   
     const games = js.events.map(ev => {
       const comp   = ev.competitions?.[0];
-      const state  = comp?.status?.type?.state || ev.status?.type?.state || 'pre';
+      const state  = comp?.status?.type?.state || ev.status?.type?.state || '--';
       const teams  = (comp?.competitors || []).map(c => ({
         score: Number(c.score || 0),
         homeAway: c.homeAway,

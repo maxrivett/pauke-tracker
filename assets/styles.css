@@ -59,6 +59,6 @@
   tbody tr.pending { background:#fff6e5; }  /* Live      */
   
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);margin-right:6px;background:#f5f7fc}
-  .badge.surv{background:#e9f8f2}
+  .badge.surv{background:#eef2ff}
   .badge.marg{background:#eef2ff}
   
