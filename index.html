@@ -10,23 +10,22 @@
   <header class="bar">
     <div class="title">NFL Pool Tracker</div>
     <div class="controls">
-      <button id="importBtn" class="btn">Import JSON</button>
-      <button id="exportBtn" class="btn">Export JSON</button>
       <button id="refreshBtn" class="btn primary">Refresh</button>
       <span id="lastUpdated" class="muted"></span>
-      <input id="importFile" type="file" accept="application/json" hidden>
+      <!-- app.js will append "Source: remote/local" here -->
     </div>
   </header>
 
   <section id="weekTabs" class="tabs"></section>
 
   <section class="grid">
-    <aside class="panel">
+    <!-- Only visible if ?source=local -->
+    <aside class="panel" id="pastePanel">
       <details open>
-        <summary><strong>Paste your weekly picks</strong></summary>
-        <p class="muted small">Paste exactly the block like your screenshot. Example lines:<br>
-          <code>CIN<br>3.5<br>jax<br>CIN</code> ... then at bottom:
-          <code>TOTAL POINTS<br>43.5<br>SURVIVOR<br>ZON<br>MARGINATOR<br>DET</code>
+        <summary><strong>Paste your weekly picks (local draft only)</strong></summary>
+        <p class="muted small">
+          Visitors don’t need this. This is for you if you want to test locally.
+          Normally, the site loads <code>picks/{season}.json</code> committed to GitHub.
         </p>
         <textarea id="pasteInput" rows="16" placeholder="Paste weekly picks here..."></textarea>
         <div class="row">
@@ -36,11 +35,11 @@
         <div id="parseErrors" class="errors"></div>
         <div id="preview" class="preview"></div>
         <div class="row">
-          <button id="saveWeekBtn" class="btn success">Save to Selected Week</button>
+          <button id="saveWeekBtn" class="btn success">Save to Selected Week (local only)</button>
         </div>
       </details>
       <div class="hint small muted">
-        Data is stored in your browser (localStorage). Use Export/Import to move between devices.
+        To publish: export locally, then commit as <code>picks/{season}.json</code>.
       </div>
     </aside>
 
@@ -76,9 +75,17 @@
   </section>
 
   <footer class="bar foot">
-    <span class="muted small">Static site • GitHub Pages ready • No server</span>
+    <span class="muted small">
+      Static site • GitHub Pages ready • Data source: <code>picks/{season}.json</code>
+    </span>
   </footer>
 
   <script src="app.js"></script>
+  <script>
+    // Hide the paste panel unless ?source=local is in the URL
+    if (!location.search.includes('source=local')) {
+      document.getElementById('pastePanel').style.display = 'none';
+    }
+  </script>
 </body>
 </html>
