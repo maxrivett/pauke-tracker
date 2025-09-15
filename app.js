@@ -1,13 +1,15 @@
-/* NFL Pool Tracker — vanilla JS, no build, GitHub Pages friendly */
+/* NFL Pool Tracker — public view via /picks/{season}.json, fallback to localStorage */
 
 const STORAGE_KEY = 'poolPicks-v1';
 const STATE = {
-  data: { season: null, weeks: {} },    // your saved picks
+  data: { season: null, weeks: {} },    // picks currently in use (remote or local)
+  localData: { season: null, weeks: {} }, // your device draft
   currentSeason: null,
   currentWeek: null,
-  teams: null,
   weekSelected: null,
-  scoreboardCache: {}                   // cache by "season-week"
+  teams: null,
+  scoreboardCache: {},
+  source: 'remote' // 'remote' or 'local'
 };
 
 const $ = sel => document.querySelector(sel);
@@ -15,9 +17,29 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 /* ---------- bootstrap ---------- */
 window.addEventListener('DOMContentLoaded', async () => {
-  loadSaved();
+  loadLocalDraft();
   STATE.teams = await fetch('data/teams.json').then(r => r.json());
-  await initSeasonWeek();
+
+  // Season override via ?season=YYYY (optional). Also ?source=local forces local.
+  const urlParams = new URLSearchParams(location.search);
+  const forceLocal = urlParams.get('source') === 'local';
+
+  await detectSeasonWeek();
+
+  if (forceLocal) {
+    STATE.data = clone(STATE.localData);
+    STATE.source = 'local';
+  } else {
+    const ok = await tryLoadRemoteSeasonFile(STATE.currentSeason);
+    if (!ok) {
+      // Remote not found → fall back to local draft
+      STATE.data = clone(STATE.localData);
+      STATE.source = 'local';
+    } else {
+      STATE.source = 'remote';
+    }
+  }
+
   renderTabs();
   setWeek(STATE.currentWeek);
 
@@ -28,28 +50,55 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#exportBtn').addEventListener('click', onExport);
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', onImportFile);
+
+  // Indicate data source in UI
+  const srcBadge = document.createElement('span');
+  srcBadge.className = 'chip';
+  srcBadge.textContent = `Source: ${STATE.source}`;
+  $('.controls').appendChild(srcBadge);
 });
 
-/* ---------- storage ---------- */
-function loadSaved(){
+/* ---------- helpers ---------- */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+/* ---------- local draft storage ---------- */
+function loadLocalDraft(){
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    STATE.data = raw ? JSON.parse(raw) : { season: null, weeks: {} };
-  } catch { STATE.data = { season: null, weeks: {} }; }
+    STATE.localData = raw ? JSON.parse(raw) : { season: null, weeks: {} };
+  } catch { STATE.localData = { season: null, weeks: {} }; }
 }
-function saveAll(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE.data));
+function saveLocalDraft(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE.localData));
 }
 
-/* ---------- ESPN week detection ---------- */
-async function initSeasonWeek(){
-  const url = 'https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard';
-  const js = await fetch(url).then(r => r.json());
+/* ---------- ESPN current season/week ---------- */
+async function detectSeasonWeek(){
+  const js = await fetch('https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard').then(r => r.json());
   const week = js?.week?.number;
   const season = js?.leagues?.[0]?.season?.year ?? js?.season?.year;
   STATE.currentSeason = season;
   STATE.currentWeek = week || 1;
-  if (!STATE.data.season) STATE.data.season = season;
+
+  if (!STATE.localData.season) STATE.localData.season = season;
+}
+
+/* ---------- attempt to load remote picks/{season}.json ---------- */
+async function tryLoadRemoteSeasonFile(season){
+  const seasonParam = new URLSearchParams(location.search).get('season');
+  const effectiveSeason = seasonParam ? Number(seasonParam) : season;
+  const path = `picks/${effectiveSeason}.json`;
+
+  try {
+    const resp = await fetch(path, { cache: 'no-store' });
+    if (!resp.ok) return false;
+    const js = await resp.json();
+    if (!js || !js.weeks) return false;
+    STATE.data = js;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /* ---------- tabs ---------- */
@@ -73,20 +122,10 @@ async function setWeek(week){
   await drawWeek();
 }
 
-/* ---------- draw current week ---------- */
-async function drawWeek(){
-  const wkey = String(STATE.weekSelected);
-  const weekData = STATE.data.weeks[wkey] || { entries: [], survivor:null, marginator:null, totalPoints:null };
-  const sb = await getScoreboard(STATE.currentSeason, STATE.weekSelected);
-  drawTable(weekData, sb);
-  updateSummary(weekData, sb);
-}
-
 /* ---------- fetch scoreboard ---------- */
 async function getScoreboard(season, week){
   const key = `${season}-${week}`;
   if (STATE.scoreboardCache[key]) return STATE.scoreboardCache[key];
-
   const url = `https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}`;
   const js = await fetch(url).then(r => r.json()).catch(()=>null);
   if (!js || !Array.isArray(js.events)) return { games: [], byPair:{} };
@@ -100,7 +139,6 @@ async function getScoreboard(season, week){
       status,
       completed: status === 'post',
       inprogress: status === 'in',
-      neutral: comp?.neutralSite || false,
       competitors: (comp?.competitors || []).map(c=>({
         id: c.id, score: Number(c.score||0),
         homeAway: c.homeAway,
@@ -113,7 +151,6 @@ async function getScoreboard(season, week){
     return { ...details, home, away };
   });
 
-  // map by pair of abbreviations for quick lookup
   const byPair = {};
   for (const g of games){
     if (!g.home?.abbr || !g.away?.abbr) continue;
@@ -121,10 +158,18 @@ async function getScoreboard(season, week){
     byPair[`${a}|${b}`] = g;
     byPair[`${b}|${a}`] = g;
   }
-
   const pack = { games, byPair };
   STATE.scoreboardCache[key] = pack;
   return pack;
+}
+
+/* ---------- draw ---------- */
+async function drawWeek(){
+  const wkey = String(STATE.weekSelected);
+  const weekData = (STATE.data.weeks && STATE.data.weeks[wkey]) || { entries: [], survivor:null, marginator:null, totalPoints:null };
+  const sb = await getScoreboard(STATE.currentSeason, STATE.weekSelected);
+  drawTable(weekData, sb);
+  updateSummary(weekData, sb);
 }
 
 /* ---------- parsing ---------- */
@@ -140,17 +185,14 @@ function normTeamToken(tok){
 
 function parsePicks(text){
   const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-
-  // remove known headings if present
   const drop = new Set(['THE SPREADS','YOUR','FAV','DOG','PICK']);
   const L = lines.filter(x => !drop.has(x.toUpperCase()));
 
   const entries = [];
   const errors = [];
   let i = 0;
-
-  // read 4-line blocks until keywords
   const isFooterKey = (s)=>/^TOTAL POINTS$|^SURVIVOR$|^MARGINATOR$/.test(s.toUpperCase());
+
   while (i < L.length){
     if (isFooterKey(L[i].toUpperCase())) break;
     const favRaw = L[i++]; if (i>L.length) break;
@@ -171,15 +213,9 @@ function parsePicks(text){
       errors.push(`Pick must be one of FAV/DOG. Block: ${favRaw} ${spreadRaw} ${dogRaw} / Pick=${pickRaw}`);
       continue;
     }
-    // enforce .5 rule
-    if (Math.abs(spread*2 - Math.round(spread*2)) > 1e-6 || (Math.round(spread*2) % 2 === 0)){
-      // If not X.5, warn but allow
-      // (Your note says they are always .5; we won't block.)
-    }
     entries.push({ fav, dog, spread: Math.abs(spread), pick });
   }
 
-  // footer
   let survivor=null, marginator=null, totalPoints=null;
   while (i < L.length){
     const k = L[i++].toUpperCase();
@@ -187,13 +223,12 @@ function parsePicks(text){
     if (k === 'SURVIVOR') survivor = normTeamToken(v);
     else if (k === 'MARGINATOR') marginator = normTeamToken(v);
     else if (k === 'TOTAL POINTS') totalPoints = parseFloat(String(v).replace(/[^\d.-]/g,''));
-    else { /* ignore stray */ }
   }
 
   return { entries, survivor, marginator, totalPoints, errors };
 }
 
-/* ---------- UI: parse preview ---------- */
+/* ---------- parse UI ---------- */
 let _lastParsed = null;
 
 function onParse(){
@@ -214,32 +249,41 @@ function onParse(){
 function saveParsedToWeek(){
   if (!_lastParsed) return;
   const wkey = String(STATE.weekSelected);
-  STATE.data.weeks[wkey] = {
+
+  // Always save to local draft (your device)
+  STATE.localData.weeks[wkey] = {
     entries: _lastParsed.entries,
     survivor: _lastParsed.survivor || null,
     marginator: _lastParsed.marginator || null,
     totalPoints: _lastParsed.totalPoints ?? null
   };
-  saveAll();
-  drawWeek();
+  if (!STATE.localData.season) STATE.localData.season = STATE.currentSeason;
+  saveLocalDraft();
+
+  // If we are viewing local data, reflect immediately
+  if (STATE.source === 'local') {
+    STATE.data = clone(STATE.localData);
+    drawWeek();
+  } else {
+    // Viewing remote; tell user to export & commit
+    alert('Saved locally. Use "Export JSON" and commit to picks/{season}.json so others can see it.');
+  }
 }
 
-/* ---------- compute ATS ---------- */
+/* ---------- ATS ---------- */
 function evaluateATS(entry, game){
   if (!game) return { state:'unmatched', text:'Unmatched', result:null };
 
   const fav = entry.fav, dog = entry.dog, s = entry.spread;
-  // Determine which side is home/away in this game
-  const abH = game.home.abbr.toUpperCase();
-  const abA = game.away.abbr.toUpperCase();
+  const abH = game.home.abbr?.toUpperCase();
+  const abA = game.away.abbr?.toUpperCase();
 
-  // scores
   const scoreFav = (abH===fav ? game.home.score : game.away.score);
   const scoreDog = (abH===dog ? game.home.score : game.away.score);
 
-  const margin = scoreFav - scoreDog; // favorite margin
+  const margin = scoreFav - scoreDog;
   const coverFav = margin > s;
-  const push = Math.abs(margin - s) < 1e-9; // shouldn't happen with .5 lines
+  const push = Math.abs(margin - s) < 1e-9; // should never happen with .5
   const coverDog = margin < s;
 
   let result=null, label='—';
@@ -250,7 +294,6 @@ function evaluateATS(entry, game){
   } else if (game.inprogress) { result='pending'; label='Live'; }
   else { result=null; label='Not started'; }
 
-  // For Marginator: margin for picked team when final
   let pickMargin = null;
   if (game.completed){
     const pickIsFav = entry.pick===fav;
@@ -259,14 +302,10 @@ function evaluateATS(entry, game){
     pickMargin = pickScore - oppScore;
   }
 
-  return { result, label, pickMargin,
-           scoreFav, scoreDog,
-           fav, dog,
-           favCover: coverFav, dogCover: coverDog,
-           push };
+  return { result, label, pickMargin };
 }
 
-/* ---------- table ---------- */
+/* ---------- table / summary ---------- */
 function drawTable(weekData, sb){
   const tbody = $('#resultsBody');
   tbody.innerHTML = '';
@@ -274,11 +313,11 @@ function drawTable(weekData, sb){
   const marg = weekData.marginator;
 
   weekData.entries.forEach((e, idx) => {
-    const g = sb.byPair[`${e.fav}|${e.dog}`]; // match by abbreviations
-    const evaln = evaluateATS(e, g);
+    const g = sb.byPair[`${e.fav}|${e.dog}`];
+    const ev = g ? evaluateATS(e, g) : { result:null, label:'No match', pickMargin:null };
 
     const tr = document.createElement('tr');
-    if (evaln.result) tr.classList.add(evaln.result);
+    if (ev.result) tr.classList.add(ev.result);
 
     const scoreTxt = g
       ? `${g.away.abbr} ${g.away.score} @ ${g.home.abbr} ${g.home.score}`
@@ -287,7 +326,7 @@ function drawTable(weekData, sb){
     const notes = [];
     if (surv && (surv===e.fav || surv===e.dog)) notes.push('<span class="badge surv">Survivor</span>');
     if (marg && (marg===e.fav || marg===e.dog)) {
-      const mtxt = (evaln.pickMargin!=null) ? `Margin ${evaln.pickMargin}` : 'Margin —';
+      const mtxt = (ev.pickMargin!=null) ? `Margin ${ev.pickMargin}` : 'Margin —';
       notes.push(`<span class="badge marg">${mtxt}</span>`);
     }
 
@@ -298,18 +337,15 @@ function drawTable(weekData, sb){
       <td>${e.pick}</td>
       <td>${scoreTxt}</td>
       <td>${g ? (g.completed?'Final':(g.inprogress?'Live':'Pre')) : 'No match'}</td>
-      <td>${evaln.label}</td>
+      <td>${ev.label}</td>
       <td>${notes.join(' ')}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-/* ---------- summary ---------- */
 function updateSummary(weekData, sb){
   let ok=0,bad=0,push=0,prog=0,not=0;
-  const survTeam = weekData.survivor;
-  const margTeam = weekData.marginator;
   let survText='—', margText='—';
 
   for (const e of weekData.entries){
@@ -322,10 +358,10 @@ function updateSummary(weekData, sb){
       else if (ev.result==='push') push++;
     } else if (g.inprogress) prog++; else not++;
 
-    if (survTeam && (survTeam===e.fav || survTeam===e.dog) && g.completed){
+    if (weekData.survivor && (weekData.survivor===e.fav || weekData.survivor===e.dog) && g.completed){
       survText = (ev.result==='ok') ? 'PASS' : (ev.result==='push' ? 'PUSH' : 'FAIL');
     }
-    if (margTeam && (margTeam===e.pick) && g.completed){
+    if (weekData.marginator && (weekData.marginator===e.pick) && g.completed){
       margText = `Final margin: ${ev.pickMargin}`;
     }
   }
@@ -347,13 +383,20 @@ async function refresh(){
 
 /* ---------- import/export ---------- */
 function onExport(){
-  const blob = new Blob([JSON.stringify(STATE.data,null,2)], {type:'application/json'});
+  // Always export the LOCAL DRAFT as the publishable season file
+  const season = STATE.localData.season || STATE.currentSeason || new Date().getFullYear();
+  const out = {
+    season,
+    weeks: STATE.localData.weeks || {}
+  };
+  const blob = new Blob([JSON.stringify(out,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'pool-picks.json';
+  a.download = `${season}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
 function onImportFile(e){
   const file = e.target.files[0];
   if (!file) return;
@@ -362,9 +405,12 @@ function onImportFile(e){
     try {
       const js = JSON.parse(reader.result);
       if (!js || typeof js!=='object' || !js.weeks) throw new Error('Invalid file');
-      STATE.data = js;
-      saveAll();
-      drawWeek();
+      STATE.localData = js;
+      saveLocalDraft();
+      if (STATE.source==='local') {
+        STATE.data = clone(STATE.localData);
+        drawWeek();
+      }
     } catch(err){
       alert('Import failed: ' + err.message);
     }

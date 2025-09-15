@@ -1,0 +1,28 @@
+{
+    "season": 2025,
+    "weeks": {
+      "2": {
+        "entries": [
+          { "fav": "CIN", "dog": "JAX", "spread": 3.5, "pick": "CIN" },
+          { "fav": "DAL", "dog": "NYG", "spread": 5.5, "pick": "DAL" },
+          { "fav": "DET", "dog": "CHI", "spread": 5.5, "pick": "DET" },
+          { "fav": "LAR", "dog": "TEN", "spread": 5.5, "pick": "LAR" },
+          { "fav": "MIA", "dog": "NE",  "spread": 1.5, "pick": "NE"  },
+          { "fav": "SF",  "dog": "NO",  "spread": 4.5, "pick": "SF"  },
+          { "fav": "BUF", "dog": "NYJ", "spread": 6.5, "pick": "BUF" },
+          { "fav": "PIT", "dog": "SEA", "spread": 2.5, "pick": "PIT" },
+          { "fav": "BAL", "dog": "CLE", "spread":10.5, "pick": "CLE" },
+          { "fav": "DEN", "dog": "IND", "spread": 2.5, "pick": "DEN" },
+          { "fav": "ARI", "dog": "CAR", "spread": 6.5, "pick": "ARI" },
+          { "fav": "PHI", "dog": "KC",  "spread": 0.5, "pick": "PHI" },
+          { "fav": "MIN", "dog": "ATL", "spread": 4.5, "pick": "MIN" },
+          { "fav": "HOU", "dog": "TB",  "spread": 2.5, "pick": "TB"  },
+          { "fav": "LAC", "dog": "LV",  "spread": 3.5, "pick": "LAC" }
+        ],
+        "survivor": "ARI",
+        "marginator": "DET",
+        "totalPoints": 43.5
+      }
+    }
+  }
+  
