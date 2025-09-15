@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>NFL Pool Tracker</title>
+  <link rel="stylesheet" href="assets/styles.css"/>
+</head>
+<body>
+  <header class="bar">
+    <div class="title">NFL Pool Tracker</div>
+    <div class="controls">
+      <button id="importBtn" class="btn">Import JSON</button>
+      <button id="exportBtn" class="btn">Export JSON</button>
+      <button id="refreshBtn" class="btn primary">Refresh</button>
+      <span id="lastUpdated" class="muted"></span>
+      <input id="importFile" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <section id="weekTabs" class="tabs"></section>
+
+  <section class="grid">
+    <aside class="panel">
+      <details open>
+        <summary><strong>Paste your weekly picks</strong></summary>
+        <p class="muted small">Paste exactly the block like your screenshot. Example lines:<br>
+          <code>CIN<br>3.5<br>jax<br>CIN</code> ... then at bottom:
+          <code>TOTAL POINTS<br>43.5<br>SURVIVOR<br>ZON<br>MARGINATOR<br>DET</code>
+        </p>
+        <textarea id="pasteInput" rows="16" placeholder="Paste weekly picks here..."></textarea>
+        <div class="row">
+          <button id="parseBtn" class="btn">Parse</button>
+          <button id="clearPasteBtn" class="btn">Clear</button>
+        </div>
+        <div id="parseErrors" class="errors"></div>
+        <div id="preview" class="preview"></div>
+        <div class="row">
+          <button id="saveWeekBtn" class="btn success">Save to Selected Week</button>
+        </div>
+      </details>
+      <div class="hint small muted">
+        Data is stored in your browser (localStorage). Use Export/Import to move between devices.
+      </div>
+    </aside>
+
+    <main>
+      <div id="summary" class="summary">
+        <span id="sumCorrect" class="chip ok">Correct: 0</span>
+        <span id="sumWrong" class="chip bad">Incorrect: 0</span>
+        <span id="sumPush" class="chip push">Push: 0</span>
+        <span id="sumProg" class="chip pending">In Progress: 0</span>
+        <span id="sumNot" class="chip">Not Started: 0</span>
+        <span id="survivorChip" class="chip survivor">Survivor: —</span>
+        <span id="marginatorChip" class="chip marginator">Marginator: —</span>
+      </div>
+
+      <div class="table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Game</th>
+              <th>Spread</th>
+              <th>Your Pick</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>ATS Result</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </section>
+
+  <footer class="bar foot">
+    <span class="muted small">Static site • GitHub Pages ready • No server</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

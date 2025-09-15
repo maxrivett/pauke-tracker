@@ -1,0 +1,43 @@
+{
+    "aliases": {
+      "ARI": ["ARI", "ARZ", "AZ", "ZON", "ARIZONA", "CARDINALS"],
+      "ATL": ["ATL", "FALCONS"],
+      "BAL": ["BAL", "RAVENS"],
+      "BUF": ["BUF", "BILLS"],
+      "CAR": ["CAR", "PANTHERS"],
+      "CHI": ["CHI", "BEARS"],
+      "CIN": ["CIN", "BENGALS"],
+      "CLE": ["CLE", "BROWNS"],
+      "DAL": ["DAL", "COWBOYS"],
+      "DEN": ["DEN", "BRONCOS"],
+      "DET": ["DET", "LIONS"],
+      "GB":  ["GB", "GNB", "PACKERS"],
+      "HOU": ["HOU", "TEXANS"],
+      "IND": ["IND", "COLTS"],
+      "JAX": ["JAX", "JAC", "JAGUARS"],
+      "KC":  ["KC", "KAN", "CHIEFS"],
+      "LAC": ["LAC", "SD", "CHARGERS"],
+      "LAR": ["LAR", "RAMS", "LA RAMS", "RAM"],
+      "LV":  ["LV", "LVR", "RAIDERS", "OAK"],
+      "MIA": ["MIA", "DOLPHINS"],
+      "MIN": ["MIN", "VIKINGS"],
+      "NE":  ["NE", "NWE", "PATRIOTS"],
+      "NO":  ["NO", "NOR", "SAINTS", "NOS"],
+      "NYG": ["NYG", "GIA", "GIANTS"],
+      "NYJ": ["NYJ", "JETS"],
+      "PHI": ["PHI", "EAGLES"],
+      "PIT": ["PIT", "STEELERS"],
+      "SEA": ["SEA", "SEAHAWKS"],
+      "SF":  ["SF", "SFO", "49ERS"],
+      "TB":  ["TB", "TAM", "BUCS", "BUCCANEERS"],
+      "TEN": ["TEN", "TITANS"],
+      "WSH": ["WSH", "WAS", "COMMANDERS", "WFT"]
+    },
+    "espnAbbr": {
+      "ARI": "ARI","ATL":"ATL","BAL":"BAL","BUF":"BUF","CAR":"CAR","CHI":"CHI","CIN":"CIN","CLE":"CLE",
+      "DAL":"DAL","DEN":"DEN","DET":"DET","GB":"GB","HOU":"HOU","IND":"IND","JAX":"JAX","KC":"KC",
+      "LAC":"LAC","LAR":"LAR","LV":"LV","MIA":"MIA","MIN":"MIN","NE":"NE","NO":"NO","NYG":"NYG",
+      "NYJ":"NYJ","PHI":"PHI","PIT":"PIT","SEA":"SEA","SF":"SF","TB":"TB","TEN":"TEN","WSH":"WSH"
+    }
+  }
+  
