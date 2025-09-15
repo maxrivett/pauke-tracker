@@ -212,13 +212,11 @@ const STATE = {
   
     const margin   = scoreFav - scoreDog;
     const coverFav = margin > s;
-    const push     = Math.abs(margin - s) < 1e-9; // safety; you use .5 lines
     const coverDog = margin < s;
   
     let result=null, label='Pre';
     if (game.completed){
-      if (push) { result='push'; label='Push'; }
-      else if ((entry.pick===fav && coverFav) || (entry.pick===dog && coverDog)) { result='ok'; label='Correct'; }
+      if ((entry.pick===fav && coverFav) || (entry.pick===dog && coverDog)) { result='ok'; label='Correct'; }
       else { result='bad'; label='Incorrect'; }
     } else if (game.inprogress) { result='pending'; label='Live'; }
   
@@ -252,14 +250,14 @@ const STATE = {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td colspan="7" class="muted">No picks saved for Week ${poolWeek} in picks/${STATE.data.season}.json.</td>`;
       tbody.appendChild(tr);
-      updateSummaryCounts({ ok:0,bad:0,push:0,prog:0,not:0, survText:'—',margText:'—' });
+      updateSummaryCounts({ ok:0,bad:0,prog:0,not:0, survText:'—',margText:'—' });
       return;
     }
   
     const surv = weekData.survivor;
     const marg = weekData.marginator;
   
-    let ok=0,bad=0,push=0,prog=0,not=0;
+    let ok=0,bad=0,prog=0,not=0;
     let survText='—', margText='—';
   
     for (const e of weekData.entries){
@@ -270,11 +268,10 @@ const STATE = {
       else if (g.completed){
         if (ev.result==='ok') ok++;
         else if (ev.result==='bad') bad++;
-        else if (ev.result==='push') push++;
       } else if (g.inprogress) { prog++; } else { not++; }
   
       if (surv && (surv===e.fav || surv===e.dog) && g && g.completed){
-        survText = (ev.result==='ok') ? 'PASS' : (ev.result==='push' ? 'PUSH' : 'FAIL');
+        survText = (ev.result==='ok') ? 'PASS' : 'FAIL';
       }
       if (marg && (marg===e.pick) && g && g.completed){
         margText = `Final margin: ${ev.pickMargin}`;
@@ -306,14 +303,13 @@ const STATE = {
       tbody.appendChild(tr);
     }
   
-    updateSummaryCounts({ ok,bad,push,prog,not, survText,margText });
+    updateSummaryCounts({ ok,bad,prog,not, survText,margText });
   }
   
-  function updateSummaryCounts({ ok,bad,push,prog,not, survText,margText }){
+  function updateSummaryCounts({ ok,bad,prog,not, survText,margText }){
     const set = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
     set('#sumCorrect',      `Correct: ${ok}`);
     set('#sumWrong',        `Incorrect: ${bad}`);
-    set('#sumPush',         `Push: ${push}`);
     set('#sumProg',         `In Progress: ${prog}`);
     set('#sumNot',          `Not Started: ${not}`);
     set('#survivorChip',    `Survivor: ${survText}`);

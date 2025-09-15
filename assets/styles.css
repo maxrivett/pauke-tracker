@@ -1,5 +1,5 @@
 :root{
-    --ok:#0fa66a; --bad:#d01c1f; --push:#9aa0a6; --pending:#e3b341;
+    --ok:#0fa66a; --bad:#d01c1f; --pending:#e3b341;
     --bg:#f6f7fb; --panel:#ffffff; --ink:#101623; --muted:#667085;
     --acc:#2a67f5; --row:#f1f4fb; --border:#d9dfeb;
   }
@@ -41,7 +41,6 @@
   .chip{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff}
   .chip.ok{background:#e9f8f2;border-color:#bfe9d3}
   .chip.bad{background:#fdeaea;border-color:#f3c6c6}
-  .chip.push{background:#f1f2f4;border-color:#d9dde5}
   .chip.pending{background:#fff6e5;border-color:#ffe1a8}
   .chip.survivor,.chip.marginator{background:#f7faff}
   
@@ -49,13 +48,12 @@
   table{width:100%;border-collapse:separate;border-spacing:0;min-width:840px} /* wider baseline */
   th,td{padding:12px 16px;border-bottom:1px solid var(--border);text-align:left}
   thead th{position:sticky;top:0;background:var(--panel);z-index:1}
-  tbody tr:nth-child(odd):not(.ok):not(.bad):not(.push):not(.pending){
+  tbody tr:nth-child(odd):not(.ok):not(.bad):not(.pending){
     background:#fafbff;
   }
 
   tbody tr.ok      { background:#e9f8f2; }  /* Correct   */
   tbody tr.bad     { background:#fdeaea; }  /* Incorrect */
-  tbody tr.push    { background:#f1f2f4; }  /* Push      */
   tbody tr.pending { background:#fff6e5; }  /* Live      */
   
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);margin-right:6px;background:#f5f7fc}
