@@ -26,8 +26,11 @@
   .tabs .tab[data-has-picks="1"]{box-shadow: inset 0 0 0 2px #16a34a33}
   
   .grid{display:grid;grid-template-columns:1fr;gap:16px;padding:16px}
-  @media(min-width:1060px){.grid{grid-template-columns:320px 1fr}}
-  
+  @media(min-width:1060px){
+    .grid{grid-template-columns:320px 1fr}     /* default: with sidebar */
+    .grid.full{grid-template-columns:1fr}      /* when sidebar hidden → full width */
+  }
+
   .panel{background:var(--panel);padding:12px;border:1px solid var(--border);border-radius:12px}
   textarea{width:100%;background:#fff;color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:10px}
   .row{display:flex;gap:8px;margin:8px 0}
@@ -43,8 +46,8 @@
   .chip.survivor,.chip.marginator{background:#f7faff}
   
   .table-wrap{overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;margin:0 16px}
-  table{width:100%;border-collapse:separate;border-spacing:0}
-  th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:840px} /* wider baseline */
+  th,td{padding:12px 16px;border-bottom:1px solid var(--border);text-align:left}
   thead th{position:sticky;top:0;background:var(--panel);z-index:1}
   tbody tr:nth-child(odd){background:#fafbff}
   

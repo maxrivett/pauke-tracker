@@ -1,31 +1,32 @@
 /* NFL Pool Tracker — public read-only from /picks/{season}.json
-   - Defaults to latest week in your JSON
+   - Defaults to the latest week present in your JSON (not ESPN’s)
    - URL overrides: ?season=YYYY&week=N
+   - Cross-week matching: if a pool week includes MNF/stragglers from another NFL week,
+     the matcher searches adjacent NFL weeks (+1, -1, +2, -2) to find the game.
 */
 
 const STATE = {
     data: { season: null, weeks: {} },
     currentSeason: null,
-    currentWeekAPI: 1,     // ESPN week (for reference)
-    weekSelected: null,
-    teams: null,
-    scoreboardCache: {},
+    currentWeekAPI: 1,   // ESPN week (for reference only)
+    weekSelected: 1,
+    scoreboardCache: {}
   };
   
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   
+  /* ------------------------------ bootstrap ------------------------------ */
   window.addEventListener('DOMContentLoaded', async () => {
-    STATE.teams = await fetch('data/teams.json').then(r => r.json());
+    // URL overrides
+    const params = new URLSearchParams(location.search);
+    const seasonOverride = params.get('season') ? Number(params.get('season')) : null;
+    const weekOverride   = params.get('week')   ? Number(params.get('week'))   : null;
   
-    const p = new URLSearchParams(location.search);
-    const seasonOverride = p.get('season') ? Number(p.get('season')) : null;
-    const weekOverride   = p.get('week')   ? Number(p.get('week'))   : null;
-  
-    // Get ESPN "current" week for tabs/reference (don’t rely on it for selection)
+    // Get ESPN "current week" (used for tabs/reference only)
     try {
       const js = await fetch('https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard').then(r=>r.json());
-      STATE.currentSeason = js?.leagues?.[0]?.season?.year ?? js?.season?.year;
+      STATE.currentSeason  = js?.leagues?.[0]?.season?.year ?? js?.season?.year ?? new Date().getFullYear();
       STATE.currentWeekAPI = js?.week?.number || 1;
     } catch {
       const now = new Date();
@@ -33,49 +34,46 @@ const STATE = {
       STATE.currentWeekAPI = 1;
     }
   
-    // Load your season JSON (prefer URL param; else ESPN season)
+    // Load your season file from /picks
     const seasonToLoad = seasonOverride || STATE.currentSeason;
-    const ok = await loadSeasonJSON(seasonToLoad);
-    if (!ok) {
-      // If missing, don’t block UI; just render empty state
-      renderTabs({ maxTabWeek: STATE.currentWeekAPI, weeksWithPicks: [] });
-      setWeek(weekOverride || 1);
-      return;
-    }
+    await loadSeasonJSON(seasonToLoad);
   
-    // Decide which week to show:
-    const weeksWithPicks = Object.keys(STATE.data.weeks).map(Number).sort((a,b)=>a-b);
-    const latestWeekWithPicks = weeksWithPicks.length ? weeksWithPicks[weeksWithPicks.length-1] : null;
+    // Decide initial week:
+    const weeksWithPicks = Object.keys(STATE.data.weeks || {}).map(Number).sort((a,b)=>a-b);
+    const latestWeekWithPicks = weeksWithPicks.length ? weeksWithPicks[weeksWithPicks.length-1] : 1;
+    const initialWeek = weekOverride || latestWeekWithPicks;
   
-    let initialWeek = weekOverride || latestWeekWithPicks || STATE.currentWeekAPI || 1;
-  
-    // Tabs should include all weeks up to max(ESPN week, latest week present)
+    // Tabs include up to max(ESPN week, latest with picks)
     const maxTabWeek = Math.max(STATE.currentWeekAPI || 1, latestWeekWithPicks || 1);
     renderTabs({ maxTabWeek, weeksWithPicks });
   
     setWeek(initialWeek);
-    $('#refreshBtn').addEventListener('click', refresh);
+    const refreshBtn = $('#refreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', refresh);
   });
   
+  /* ------------------------------ loading ------------------------------ */
   async function loadSeasonJSON(season){
     try {
       const resp = await fetch(`picks/${season}.json`, { cache: 'no-store' });
-      if (!resp.ok) return false;
+      if (!resp.ok) { STATE.data = { season, weeks:{} }; return; }
       const js = await resp.json();
-      if (!js || !js.weeks) return false;
-      STATE.data = js;
-      return true;
-    } catch { return false; }
+      STATE.data = (js && js.weeks) ? js : { season, weeks:{} };
+    } catch {
+      STATE.data = { season, weeks:{} };
+    }
   }
   
+  /* ------------------------------ tabs ------------------------------ */
   function renderTabs({ maxTabWeek, weeksWithPicks }){
     const bar = $('#weekTabs');
+    if (!bar) return;
     bar.innerHTML = '';
     for (let w=1; w<=maxTabWeek; w++){
       const b = document.createElement('button');
       b.className = 'tab';
       b.textContent = `Week ${w}`;
-      if (weeksWithPicks.includes(w)) b.setAttribute('data-has-picks','1'); // style cue
+      if (weeksWithPicks.includes(w)) b.setAttribute('data-has-picks','1');
       b.addEventListener('click', () => setWeek(w));
       bar.appendChild(b);
     }
@@ -87,14 +85,7 @@ const STATE = {
     await drawWeek();
   }
   
-  async function drawWeek(){
-    const w = String(STATE.weekSelected);
-    const weekData = STATE.data.weeks[w] || { entries: [], survivor:null, marginator:null, totalPoints:null };
-    const sb = await getScoreboard(STATE.data.season || STATE.currentSeason, STATE.weekSelected);
-    drawTable(weekData, sb);
-    updateSummary(weekData, sb);
-  }
-  
+  /* ------------------------------ scoreboard ------------------------------ */
   async function getScoreboard(season, week){
     const key = `${season}-${week}`;
     if (STATE.scoreboardCache[key]) return STATE.scoreboardCache[key];
@@ -107,46 +98,63 @@ const STATE = {
     const games = js.events.map(ev => {
       const comp = ev.competitions?.[0];
       const status = comp?.status?.type?.state || ev.status?.type?.state || 'pre';
-      const details = {
-        id: ev.id,
+      const competitors = (comp?.competitors || []).map(c=>({
+        score: Number(c.score||0),
+        homeAway: c.homeAway,
+        abbr: (c.team?.abbreviation || '').toUpperCase(),
+        display: c.team?.shortDisplayName || c.team?.name || ''
+      }));
+      const home = competitors.find(x=>x.homeAway==='home');
+      const away = competitors.find(x=>x.homeAway==='away');
+      return {
         status,
         completed: status === 'post',
         inprogress: status === 'in',
-        competitors: (comp?.competitors || []).map(c=>({
-          score: Number(c.score||0),
-          homeAway: c.homeAway,
-          abbr: c.team?.abbreviation,
-          display: c.team?.shortDisplayName || c.team?.name
-        }))
+        home, away
       };
-      const home = details.competitors.find(x=>x.homeAway==='home');
-      const away = details.competitors.find(x=>x.homeAway==='away');
-      return { ...details, home, away };
     });
   
     const byPair = {};
     for (const g of games){
       if (!g.home?.abbr || !g.away?.abbr) continue;
-      const a = g.home.abbr.toUpperCase(), b = g.away.abbr.toUpperCase();
-      byPair[`${a}|${b}`] = g;
-      byPair[`${b}|${a}`] = g;
+      byPair[`${g.home.abbr}|${g.away.abbr}`] = g;
+      byPair[`${g.away.abbr}|${g.home.abbr}`] = g;
     }
     const pack = { games, byPair };
     STATE.scoreboardCache[key] = pack;
     return pack;
   }
   
+  /* ------------------------------ cross-week matching ------------------------------ */
+  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
+  function candidateWeeksForPoolWeek(poolWeek){
+    // try same week first, then neighbors; covers MNF/TNF bleed
+    const tries = [0, +1, -1, +2, -2];
+    return tries.map(d => clamp(poolWeek + d, 1, 22)); // generous upper bound
+  }
+  
+  async function findGameAcrossWeeks(entry, season, poolWeek){
+    const attempts = candidateWeeksForPoolWeek(poolWeek);
+    for (const w of attempts){
+      const sb = await getScoreboard(season, w);
+      const g = sb.byPair[`${entry.fav}|${entry.dog}`];
+      if (g) return { game:g, week:w };
+    }
+    return { game:null, week:null };
+  }
+  
+  /* ------------------------------ evaluation ------------------------------ */
   function evaluateATS(entry, game){
-    if (!game) return { result:null, label:'No game', pickMargin:null };
+    if (!game) return { result:null, label:'No match', pickMargin:null };
   
     const fav = entry.fav, dog = entry.dog, s = entry.spread;
-    const abH = game.home.abbr?.toUpperCase();
+    const abH = game.home.abbr; // home abbreviation
     const scoreFav = (abH===fav ? game.home.score : game.away.score);
     const scoreDog = (abH===dog ? game.home.score : game.away.score);
   
     const margin = scoreFav - scoreDog;
     const coverFav = margin > s;
-    const push = Math.abs(margin - s) < 1e-9; // won’t happen with .5, kept for safety
+    const push = Math.abs(margin - s) < 1e-9; // safety (shouldn’t occur with .5 spreads)
     const coverDog = margin < s;
   
     let result=null, label='Pre';
@@ -163,26 +171,57 @@ const STATE = {
       const oppScore = pickIsFav ? scoreDog : scoreFav;
       pickMargin = pickScore - oppScore;
     }
-    return { result, label, pickMargin, scoreFav, scoreDog };
+    return { result, label, pickMargin };
   }
   
-  function drawTable(weekData, sb){
+  /* ------------------------------ rendering ------------------------------ */
+  async function drawWeek(){
+    const w = String(STATE.weekSelected);
+    const weekData = STATE.data.weeks[w] || { entries: [], survivor:null, marginator:null, totalPoints:null };
+  
+    // Preload selected week’s scoreboard; matching will search across weeks anyway
+    await getScoreboard(STATE.data.season || STATE.currentSeason, STATE.weekSelected);
+  
+    await drawTable(weekData, STATE.data.season || STATE.currentSeason, STATE.weekSelected);
+  }
+  
+  async function drawTable(weekData, season, poolWeek){
     const tbody = $('#resultsBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
   
     if (!weekData.entries.length){
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="8" class="muted">No picks saved for Week ${STATE.weekSelected} in picks/${STATE.data.season}.json.</td>`;
+      tr.innerHTML = `<td colspan="7" class="muted">No picks saved for Week ${poolWeek} in picks/${STATE.data.season}.json.</td>`;
       tbody.appendChild(tr);
+      updateSummaryCounts({ ok:0,bad:0,push:0,prog:0,not:0, survText:'—',margText:'—' });
       return;
     }
   
     const surv = weekData.survivor;
     const marg = weekData.marginator;
   
-    weekData.entries.forEach((e, idx) => {
-      const g = sb.byPair[`${e.fav}|${e.dog}`];
-      const ev = evaluateATS(e, g);
+    // recompute summary while rendering
+    let ok=0,bad=0,push=0,prog=0,not=0;
+    let survText='—', margText='—';
+  
+    for (const e of weekData.entries){
+      const { game:g } = await findGameAcrossWeeks(e, season, poolWeek);
+      const ev = evaluateATS(e, g || null);
+  
+      if (!g){ not++; }
+      else if (g.completed){
+        if (ev.result==='ok') ok++;
+        else if (ev.result==='bad') bad++;
+        else if (ev.result==='push') push++;
+      } else if (g.inprogress) { prog++; } else { not++; }
+  
+      if (surv && (surv===e.fav || surv===e.dog) && g && g.completed){
+        survText = (ev.result==='ok') ? 'PASS' : (ev.result==='push' ? 'PUSH' : 'FAIL');
+      }
+      if (marg && (marg===e.pick) && g && g.completed){
+        margText = `Final margin: ${ev.pickMargin}`;
+      }
   
       const tr = document.createElement('tr');
       if (ev.result) tr.classList.add(ev.result);
@@ -199,8 +238,7 @@ const STATE = {
       }
   
       tr.innerHTML = `
-        <td>${idx+1}</td>
-        <td><strong>${e.fav}</strong> (-${e.spread}) vs <strong>${e.dog}</strong></td>
+        <td><strong>${e.fav}</strong> (-${e.spread})<div class="muted small">vs <strong>${e.dog}</strong></div></td>
         <td>-${e.spread}</td>
         <td>${e.pick}</td>
         <td>${scoreTxt}</td>
@@ -209,42 +247,30 @@ const STATE = {
         <td>${notes.join(' ')}</td>
       `;
       tbody.appendChild(tr);
-    });
-  }
-  
-  function updateSummary(weekData, sb){
-    let ok=0,bad=0,push=0,prog=0,not=0;
-    let survText='—', margText='—';
-  
-    for (const e of weekData.entries){
-      const g = sb.byPair[`${e.fav}|${e.dog}`];
-      if (!g){ not++; continue; }
-      const ev = evaluateATS(e,g);
-      if (g.completed){
-        if (ev.result==='ok') ok++;
-        else if (ev.result==='bad') bad++;
-        else if (ev.result==='push') push++;
-      } else if (g.inprogress) prog++; else not++;
-  
-      if (weekData.survivor && (weekData.survivor===e.fav || weekData.survivor===e.dog) && g.completed){
-        survText = (ev.result==='ok') ? 'PASS' : (ev.result==='push' ? 'PUSH' : 'FAIL');
-      }
-      if (weekData.marginator && (weekData.marginator===e.pick) && g.completed){
-        margText = `Final margin: ${ev.pickMargin}`;
-      }
     }
-    $('#sumCorrect').textContent = `Correct: ${ok}`;
-    $('#sumWrong').textContent = `Incorrect: ${bad}`;
-    $('#sumPush').textContent = `Push: ${push}`;
-    $('#sumProg').textContent = `In Progress: ${prog}`;
-    $('#sumNot').textContent = `Not Started: ${not}`;
-    $('#survivorChip').textContent = `Survivor: ${survText}`;
-    $('#marginatorChip').textContent = `Marginator: ${margText}`;
+  
+    updateSummaryCounts({ ok,bad,push,prog,not, survText,margText });
   }
   
+  function updateSummaryCounts({ ok,bad,push,prog,not, survText,margText }){
+    const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+    set('#sumCorrect',   `Correct: ${ok}`);
+    set('#sumWrong',     `Incorrect: ${bad}`);
+    set('#sumPush',      `Push: ${push}`);
+    set('#sumProg',      `In Progress: ${prog}`);
+    set('#sumNot',       `Not Started: ${not}`);
+    set('#survivorChip', `Survivor: ${survText}`);
+    set('#marginatorChip', `Marginator: ${margText}`);
+  }
+  
+  /* ------------------------------ refresh ------------------------------ */
   async function refresh(){
-    $('#lastUpdated').textContent = 'Refreshing...';
+    const ts = $('#lastUpdated');
+    if (ts) ts.textContent = 'Refreshing...';
+    // clear just the selected week cache to force re-pull
+    const key = `${STATE.data.season || STATE.currentSeason}-${STATE.weekSelected}`;
+    delete STATE.scoreboardCache[key];
     await drawWeek();
-    $('#lastUpdated').textContent = `Last updated ${new Date().toLocaleTimeString()}`;
+    if (ts) ts.textContent = `Last updated ${new Date().toLocaleTimeString()}`;
   }
   

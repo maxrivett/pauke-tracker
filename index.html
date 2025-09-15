@@ -56,18 +56,18 @@
 
       <div class="table-wrap">
         <table id="resultsTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Game</th>
-              <th>Spread</th>
-              <th>Your Pick</th>
-              <th>Score</th>
-              <th>Status</th>
-              <th>ATS Result</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
+            <thead>
+                <tr>
+                  <th>Game</th>
+                  <th>Spread</th>
+                  <th>Your Pick</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>ATS Result</th>
+                  <th>Notes</th>
+                </tr>
+            </thead>
+              
           <tbody id="resultsBody"></tbody>
         </table>
       </div>
@@ -83,8 +83,11 @@
   <script src="app.js"></script>
   <script>
     // Hide the paste panel unless ?source=local is in the URL
+    const grid = document.querySelector('.grid');
     if (!location.search.includes('source=local')) {
-      document.getElementById('pastePanel').style.display = 'none';
+      const panel = document.getElementById('pastePanel');
+      if (panel) panel.style.display = 'none';
+      if (grid) grid.classList.add('full'); // ← make content full width
     }
   </script>
 </body>
