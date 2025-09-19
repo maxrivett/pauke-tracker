@@ -45,6 +45,28 @@
         "survivor": "ARI",
         "marginator": "DET",
         "totalPoints": 43.5
+      },
+      "3": {
+        "entries": [
+          { "fav": "GB",  "dog": "CLE", "spread": 7.5, "pick": "GB"  },
+          { "fav": "IND", "dog": "TEN", "spread": 3.5, "pick": "TEN" },
+          { "fav": "MIN", "dog": "CIN", "spread": 2.5, "pick": "CIN" },
+          { "fav": "PIT", "dog": "NE",  "spread": 1.5, "pick": "PIT" },
+          { "fav": "PHI", "dog": "LAR", "spread": 3.5, "pick": "PHI" },
+          { "fav": "TB",  "dog": "NYJ", "spread": 6.5, "pick": "NYJ" },
+          { "fav": "WAS", "dog": "LV",  "spread": 3.5, "pick": "WAS" },
+          { "fav": "ATL", "dog": "CAR", "spread": 5.5, "pick": "ATL" },
+          { "fav": "JAX", "dog": "HOU", "spread": 1.5, "pick": "HOU" },
+          { "fav": "LAC", "dog": "DEN", "spread": 2.5, "pick": "LAC" },
+          { "fav": "SEA", "dog": "NO",  "spread": 4.5, "pick": "SEA" },
+          { "fav": "CHI", "dog": "DAL", "spread": 0.5, "pick": "DAL" },
+          { "fav": "SF",  "dog": "ARI", "spread": 1.5, "pick": "SF"  },
+          { "fav": "KC",  "dog": "NYG", "spread": 6.5, "pick": "KC"  },
+          { "fav": "BAL", "dog": "DET", "spread": 4.5, "pick": "DET" }
+        ],
+        "survivor": "GB",
+        "marginator": "GB",
+        "totalPoints": 40
       }
     }
   }
