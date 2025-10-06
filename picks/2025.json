@@ -89,6 +89,26 @@
         "survivor": "BUF",
         "marginator": "BUF",
         "totalPoints": 43.5
+      },
+      "5": {
+        "entries": [
+          { "fav": "MIN", "dog": "CLE", "spread": 3.5, "pick": "MIN" },
+          { "fav": "IND", "dog": "LV", "spread": 6.5, "pick": "IND" },
+          { "fav": "NO", "dog": "NYG", "spread": 1.5, "pick": "NYG" },
+          { "fav": "DAL", "dog": "JETS", "spread": 2.5, "pick": "DAL" },
+          { "fav": "PHI", "dog": "DEN", "spread": 3.5, "pick": "PHI" },
+          { "fav": "MIA", "dog": "CAR", "spread": 1.5, "pick": "CAR" },
+          { "fav": "HOU", "dog": "BAL", "spread": 1.5, "pick": "BAL" },
+          { "fav": "ZON", "dog": "TEN", "spread": 7.5, "pick": "ZON" },
+          { "fav": "SEA", "dog": "TB", "spread": 3.5, "pick": "TB" },
+          { "fav": "DET", "dog": "CIN", "spread": 10.5, "pick": "DET" },
+          { "fav": "LAC", "dog": "WAS", "spread": 2.5, "pick": "LAC" },
+          { "fav": "BUF", "dog": "NE", "spread": 7.5, "pick": "BUF" },
+          { "fav": "KC",  "dog": "JAX", "spread": 3.5, "pick": "KC" }
+        ],
+        "total_points": 43.5,
+        "survivor": "BUF",
+        "marginator": "DET"
       }
     }
   }
